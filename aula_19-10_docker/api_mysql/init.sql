@@ -1,0 +1,8 @@
+CREATE TABLE IF NOT EXISTS tarefas (
+    id        INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    titulo    VARCHAR(120) NOT NULL,
+    concluida BOOLEAN      NOT NULL DEFAULT FALSE,
+    criada_em TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO tarefas (titulo) VALUES ('Tarefa inicial criada pelo init.sql');

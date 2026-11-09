@@ -1,0 +1,410 @@
+{
+  "info": {
+    "_postman_id": "d09ec894-0123-480a-a6b2-069f8e63e3e4",
+    "name": "AS - Aula 19-10 - API de tarefas (com exercícios)",
+    "description": "Testes da API de tarefas (api_simples e api_mysql). Rode a coleção inteira (Runner) após docker compose up. As requisições marcadas com 'Ex' cobrem os exercícios em dupla e só existem na api_mysql.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "GET /saude (api_mysql)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/saude",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "saude"
+          ]
+        },
+        "description": "Somente na api_mysql."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 200', () => pm.response.to.have.status(200));",
+              "pm.test('api e banco ok', () => { const j = pm.response.json(); pm.expect(j.api).to.eql('ok'); pm.expect(j.banco).to.eql('ok'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "GET /tarefas",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/tarefas",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "tarefas"
+          ]
+        },
+        "description": ""
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 200', () => pm.response.to.have.status(200));",
+              "pm.test('corpo é uma lista', () => pm.expect(pm.response.json()).to.be.an('array'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "POST /tarefas (válida)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/tarefas",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "tarefas"
+          ]
+        },
+        "description": "",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"titulo\": \"Estudar Docker\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 201', () => pm.response.to.have.status(201));",
+              "const j = pm.response.json();",
+              "pm.test('devolve id numérico e o título enviado', () => { pm.expect(j.id).to.be.a('number'); pm.expect(j.titulo).to.eql('Estudar Docker'); });",
+              "pm.collectionVariables.set('tarefa_id', j.id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "GET /tarefas (contém a nova)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/tarefas",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "tarefas"
+          ]
+        },
+        "description": ""
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('lista contém a tarefa criada', () => { const id = Number(pm.collectionVariables.get('tarefa_id')); pm.expect(pm.response.json().map(t => t.id)).to.include(id); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "POST /tarefas (título vazio)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/tarefas",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "tarefas"
+          ]
+        },
+        "description": "",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"titulo\": \"\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 422', () => pm.response.to.have.status(422));",
+              "pm.test('erro aponta o campo titulo', () => pm.expect(JSON.stringify(pm.response.json())).to.include('titulo'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ex1 - GET /tarefas/{id} (existente)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/tarefas/{{tarefa_id}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "tarefas",
+            "{{tarefa_id}}"
+          ]
+        },
+        "description": ""
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 200', () => pm.response.to.have.status(200));",
+              "pm.test('devolve a tarefa pedida', () => { const j = pm.response.json(); pm.expect(j.id).to.eql(Number(pm.collectionVariables.get('tarefa_id'))); pm.expect(j.titulo).to.eql('Estudar Docker'); });",
+              "pm.test('nova tarefa começa não concluída', () => pm.expect(pm.response.json().concluida).to.eql(false));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ex1 - GET /tarefas/{id} (inexistente)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/tarefas/999999",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "tarefas",
+            "999999"
+          ]
+        },
+        "description": ""
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 404', () => pm.response.to.have.status(404));",
+              "pm.test('mensagem de erro', () => pm.expect(pm.response.json().detail).to.include('não encontrada'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ex2 - PATCH /tarefas/{id} (concluir)",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/tarefas/{{tarefa_id}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "tarefas",
+            "{{tarefa_id}}"
+          ]
+        },
+        "description": "",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"concluida\": true\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 200', () => pm.response.to.have.status(200));",
+              "pm.test('concluida = true e título mantido', () => { const j = pm.response.json(); pm.expect(j.concluida).to.eql(true); pm.expect(j.titulo).to.eql('Estudar Docker'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ex2 - GET /tarefas/{id} (persistiu)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/tarefas/{{tarefa_id}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "tarefas",
+            "{{tarefa_id}}"
+          ]
+        },
+        "description": ""
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('alteração gravada no banco', () => pm.expect(pm.response.json().concluida).to.eql(true));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ex2 - PATCH /tarefas/{id} (inexistente)",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/tarefas/999999",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "tarefas",
+            "999999"
+          ]
+        },
+        "description": "",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"concluida\": true\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 404', () => pm.response.to.have.status(404));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ex2 - PATCH /tarefas/{id} (corpo vazio)",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/tarefas/{{tarefa_id}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "tarefas",
+            "{{tarefa_id}}"
+          ]
+        },
+        "description": "",
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 422', () => pm.response.to.have.status(422));"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "tarefa_id",
+      "value": ""
+    }
+  ]
+}
