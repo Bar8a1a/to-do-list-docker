@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager, contextmanager
 
 import pymysql
 from fastapi import FastAPI, HTTPException, status
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field
 from pymysql.cursors import DictCursor
 
 
@@ -47,40 +47,21 @@ async def lifespan(_: FastAPI):
     yield
 
 
-app = FastAPI(title="API de Tarefas + MySQL", version="1.1.0", lifespan=lifespan)
+app = FastAPI(title="API de Tarefas + MySQL", version="1.0.0", lifespan=lifespan)
 
 
 class TarefaEntrada(BaseModel):
     titulo: str = Field(min_length=1, max_length=120)
 
 
-class TarefaAtualizacao(BaseModel):
-    titulo: str | None = Field(default=None, min_length=1, max_length=120)
-    concluida: bool | None = None
-
-    @model_validator(mode="after")
-    def pelo_menos_um_campo(self):
-        if self.titulo is None and self.concluida is None:
-            raise ValueError("informe ao menos um campo: titulo ou concluida")
-        return self
+class TarefaConclusao(BaseModel):
+    concluida: bool
 
 
 class Tarefa(BaseModel):
     id: int
     titulo: str
     concluida: bool
-
-
-COLUNAS = "id, titulo, concluida"
-
-
-def _buscar(cur, tarefa_id: int) -> dict | None:
-    cur.execute(f"SELECT {COLUNAS} FROM tarefas WHERE id = %s", (tarefa_id,))
-    return cur.fetchone()
-
-
-def _nao_encontrada(tarefa_id: int) -> HTTPException:
-    return HTTPException(status.HTTP_404_NOT_FOUND, f"Tarefa {tarefa_id} não encontrada")
 
 
 @app.get("/saude")
@@ -96,8 +77,18 @@ def saude():
 @app.get("/tarefas", response_model=list[Tarefa])
 def listar_tarefas():
     with conexao() as con, con.cursor() as cur:
-        cur.execute(f"SELECT {COLUNAS} FROM tarefas ORDER BY id")
+        cur.execute("SELECT id, titulo, concluida FROM tarefas ORDER BY id")
         return cur.fetchall()
+
+
+@app.get("/tarefas/{tarefa_id}", response_model=Tarefa)
+def obter_tarefa(tarefa_id: int):
+    with conexao() as con, con.cursor() as cur:
+        cur.execute("SELECT id, titulo, concluida FROM tarefas WHERE id = %s", (tarefa_id,))
+        tarefa = cur.fetchone()
+    if tarefa is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Tarefa não encontrada")
+    return tarefa
 
 
 @app.post("/tarefas", response_model=Tarefa, status_code=status.HTTP_201_CREATED)
@@ -107,29 +98,12 @@ def criar_tarefa(entrada: TarefaEntrada):
         return {"id": cur.lastrowid, "titulo": entrada.titulo, "concluida": False}
 
 
-@app.get(
-    "/tarefas/{tarefa_id}",
-    response_model=Tarefa,
-    responses={404: {"description": "Tarefa não encontrada"}},
-)
-def obter_tarefa(tarefa_id: int):
+@app.patch("/tarefas/{tarefa_id}", response_model=Tarefa)
+def concluir_tarefa(tarefa_id: int, entrada: TarefaConclusao):
     with conexao() as con, con.cursor() as cur:
-        tarefa = _buscar(cur, tarefa_id)
+        cur.execute("UPDATE tarefas SET concluida = %s WHERE id = %s", (entrada.concluida, tarefa_id))
+        cur.execute("SELECT id, titulo, concluida FROM tarefas WHERE id = %s", (tarefa_id,))
+        tarefa = cur.fetchone()
     if tarefa is None:
-        raise _nao_encontrada(tarefa_id)
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Tarefa não encontrada")
     return tarefa
-
-
-@app.patch(
-    "/tarefas/{tarefa_id}",
-    response_model=Tarefa,
-    responses={404: {"description": "Tarefa não encontrada"}},
-)
-def atualizar_tarefa(tarefa_id: int, entrada: TarefaAtualizacao):
-    campos = entrada.model_dump(exclude_none=True)
-    sets = ", ".join(f"{coluna} = %s" for coluna in campos)
-    with conexao() as con, con.cursor() as cur:
-        if _buscar(cur, tarefa_id) is None:
-            raise _nao_encontrada(tarefa_id)
-        cur.execute(f"UPDATE tarefas SET {sets} WHERE id = %s", (*campos.values(), tarefa_id))
-        return _buscar(cur, tarefa_id)
